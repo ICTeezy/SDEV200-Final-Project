@@ -16,6 +16,7 @@
   <modules>
     <module>Server</module>
     <module>Client</module>
+    <module>CatsChatLib</module>
   </modules>
 
   <build>

@@ -7,6 +7,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
 import java.util.Iterator;
 
 public class Main 
@@ -51,6 +52,8 @@ public class Main
 
         System.out.println("Started listening on port " + port + "...");
 
+        HashMap<SocketChannel, Integer> connectionPhases = new HashMap<>();
+
         while (true)
         {
             try 
@@ -89,7 +92,6 @@ public class Main
                         clientChannel.write(buffer);
                     }
                 }
-
             } 
             catch (IOException e) 
             {
@@ -97,5 +99,4 @@ public class Main
             }
         }
     }
-
 }
