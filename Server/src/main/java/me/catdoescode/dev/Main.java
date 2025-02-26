@@ -1,11 +1,13 @@
 package me.catdoescode.dev;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
 
 public class Main 
 {
@@ -30,11 +32,17 @@ public class Main
             return;
         }
         
-        ServerSocket serverSocket;
+        ServerSocketChannel serverSocket;
+        Selector selector;
 
         try 
         {
-            serverSocket = new ServerSocket(port);
+            selector = Selector.open();
+            serverSocket = ServerSocketChannel.open();
+
+            serverSocket.configureBlocking(false); //Set the server socket to be non-blocking
+            serverSocket.bind(new InetSocketAddress("localhost", port));
+            serverSocket.register(selector, SelectionKey.OP_ACCEPT);
 		} catch (IOException e) {
             System.out.println("Failed to start listening on port " + port + " is it available?");
 			e.printStackTrace();
@@ -43,60 +51,51 @@ public class Main
 
         System.out.println("Started listening on port " + port + "...");
 
-        Socket client;
-
-        try 
-        {
-			client = serverSocket.accept();
-		} 
-        catch (IOException e) 
-        {
-            System.out.println("Failed to accept client connection.");
-			e.printStackTrace();
-
-            try 
-            {
-			    serverSocket.close();
-		    }    
-            catch (IOException ignored) {} // Don't care if couldn't close, the program is over anyways.
-                
-            return;
-        }
-
-        try 
-        (
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-            PrintWriter printWriter = new PrintWriter(client.getOutputStream(), true)
-        )
-        {       
-            String clientMessage;
-            while ((clientMessage = bufferedReader.readLine()) != null)
-            {
-                System.out.println("Client: " + clientMessage);
-                printWriter.println("Echo: " + clientMessage);
-            }
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        finally
+        while (true)
         {
             try 
             {
-                client.close();
-			} 
+                selector.select();
+
+                Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
+
+                while (keyIterator.hasNext())
+                {
+                    SelectionKey key = keyIterator.next();
+                    keyIterator.remove();
+
+                    if (key.isAcceptable())
+                    {
+                        SocketChannel clientChannel = serverSocket.accept();
+                        clientChannel.configureBlocking(false);
+                        clientChannel.register(selector, SelectionKey.OP_READ);
+                        System.out.println("Accepted incoming connection.");
+                    }
+                    else if (key.isReadable())
+                    {
+                        SocketChannel clientChannel = (SocketChannel) key.channel();
+                    
+                        ByteBuffer buffer = ByteBuffer.allocate(1024);
+                        int bytesRead = clientChannel.read(buffer);
+
+                        if (bytesRead == -1)
+                        {
+                            clientChannel.close();
+                            System.out.println("Client disconnected.");
+                            continue;
+                        }
+
+                        buffer.flip();
+                        clientChannel.write(buffer);
+                    }
+                }
+
+            } 
             catch (IOException e) 
             {
-				e.printStackTrace();
-			}
+                e.printStackTrace();
+            }
         }
-
-        try 
-        {
-			serverSocket.close();
-		} 
-        catch (IOException ignored) {} // Don't care if couldn't close, the program is over anyways.
     }
 
 }
