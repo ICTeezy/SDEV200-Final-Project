@@ -2,7 +2,7 @@ package me.catdoescode.dev.network;
 
 import java.nio.ByteBuffer;
 
-public interface Packet<T> 
+public interface Packet
 {
-    ByteBuffer buffer();
+    ByteBuffer write();
 }

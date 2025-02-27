@@ -5,17 +5,55 @@ import java.nio.ByteBuffer;
 import me.catdoescode.dev.network.PacketType.Serverbound;
 import me.catdoescode.dev.network.packets.ServerboundPacket;
 
-public class SBMessagePacket implements ServerboundPacket<SBMessagePacket>
+public class SBMessagePacket implements ServerboundPacket
 {
 
-    @Override
-    public ByteBuffer buffer() 
+    private final String message;
+
+    public SBMessagePacket(String message)
     {
-        return null;
+        this.message = message;
+    }
+
+    public static SBMessagePacket read(ByteBuffer buffer) 
+    {
+        buffer.flip();
+
+        int messageLength = buffer.getInt();
+        byte[] message = new byte[messageLength];
+
+        for (int i = 0; i < messageLength; i++)
+        {
+            message[i] = buffer.get();
+        }
+
+        return new SBMessagePacket(new String(message));
+    }
+
+    public String message()
+    {
+        return this.message;
     }
 
     @Override
-    public Serverbound getType() 
+    public ByteBuffer write() 
+    {
+        ByteBuffer buffer = ByteBuffer.allocate(4 + 4 + 4 + message.length());
+
+        buffer.putInt(8 + message.length());
+        buffer.putInt(1);
+        buffer.putInt(message.length());
+
+        for (char c : message.toCharArray())
+        {
+            buffer.put((byte) c);
+        }
+
+        return buffer;
+    }
+
+    @Override
+    public Serverbound type() 
     {
         return Serverbound.MESSAGE;
     }

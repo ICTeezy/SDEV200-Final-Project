@@ -4,8 +4,20 @@ public class PacketType
 {
     public enum Serverbound
     {
-        MESSAGE,
-        USERNAME
+        MESSAGE(1),
+        USERNAME(2);
+    
+        Serverbound(int packetID)
+        {
+            this.packetID = packetID;
+        }
+
+        public int id()
+        {
+            return this.packetID;
+        }
+
+        private int packetID; 
     }
 
     public enum Clientbound
