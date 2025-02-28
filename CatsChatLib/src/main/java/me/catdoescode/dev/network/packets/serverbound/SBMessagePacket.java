@@ -17,8 +17,6 @@ public class SBMessagePacket implements ServerboundPacket
 
     public static SBMessagePacket read(ByteBuffer buffer) 
     {
-        buffer.flip();
-
         int messageLength = buffer.getInt();
         byte[] message = new byte[messageLength];
 
@@ -41,7 +39,7 @@ public class SBMessagePacket implements ServerboundPacket
         ByteBuffer buffer = ByteBuffer.allocate(4 + 4 + 4 + message.length());
 
         buffer.putInt(8 + message.length());
-        buffer.putInt(1);
+        buffer.putInt(type().id());
         buffer.putInt(message.length());
 
         for (char c : message.toCharArray())

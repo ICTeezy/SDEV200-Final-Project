@@ -13,6 +13,8 @@ import java.util.Map;
 import me.catdoescode.dev.network.Packet;
 import me.catdoescode.dev.network.PacketBuilder;
 import me.catdoescode.dev.network.PacketRegistry;
+import me.catdoescode.dev.network.packets.ServerboundPacket;
+import me.catdoescode.dev.network.packets.serverbound.SBMessagePacket;
 
 public class CatChatServer 
 {
@@ -72,8 +74,6 @@ public class CatChatServer
                     PacketBuilder packetBuilder = packetBuilders.get(clientChannel);
                     int bytesRead = packetBuilder.read(clientChannel);
 
-                    System.out.println("Bytes read: " + bytesRead);
-
                     if (bytesRead == -1)
                     {
                         clientChannel.close();
@@ -91,7 +91,16 @@ public class CatChatServer
 
     private void onPacketBuild(Packet packet)
     {
-        System.out.println("Packet built!");
+        ServerboundPacket serverPacket = (ServerboundPacket) packet;
+
+        switch (serverPacket.type())
+        {
+            case MESSAGE:
+            {
+                SBMessagePacket messagePacket = (SBMessagePacket) serverPacket;
+                System.out.println("Message: " + messagePacket.message()); 
+            }
+        }
     }
 
     private void onUserDisconnect()
