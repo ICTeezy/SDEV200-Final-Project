@@ -1,3 +1,4 @@
 .mvn
 .vscode
 target
+dependency-reduced-pom.xml
