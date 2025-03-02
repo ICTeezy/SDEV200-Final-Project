@@ -36,18 +36,12 @@ public class SBMessagePacket implements ServerboundPacket
     @Override
     public ByteBuffer write() 
     {
-        ByteBuffer buffer = ByteBuffer.allocate(4 + 4 + 4 + message.length());
+        ByteBuffer buffer = ByteBuffer.allocate(4 + message.length());
 
-        buffer.putInt(8 + message.length());
-        buffer.putInt(type().id());
         buffer.putInt(message.length());
-
-        for (char c : message.toCharArray())
-        {
-            buffer.put((byte) c);
-        }
-
+        buffer.put(message.getBytes());
         return buffer;
+
     }
 
     @Override

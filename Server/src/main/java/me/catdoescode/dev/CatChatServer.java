@@ -2,6 +2,7 @@ package me.catdoescode.dev;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -14,11 +15,16 @@ import me.catdoescode.dev.network.Packet;
 import me.catdoescode.dev.network.PacketBuilder;
 import me.catdoescode.dev.network.PacketRegistry;
 import me.catdoescode.dev.network.packets.ServerboundPacket;
+import me.catdoescode.dev.network.packets.clientbound.CBMessagePacket;
+import me.catdoescode.dev.network.packets.clientbound.CBUserJoinPacket;
+import me.catdoescode.dev.network.packets.clientbound.CBUsernameInUsePacket;
 import me.catdoescode.dev.network.packets.serverbound.SBMessagePacket;
+import me.catdoescode.dev.network.packets.serverbound.SBUsernameSetPacket;
 
 public class CatChatServer 
 {
 
+    private final Map<SocketChannel, String> users = new HashMap<>(); 
     private final Map<SocketChannel, PacketBuilder> packetBuilders = new HashMap<>();
 
     public void start(int port)
@@ -76,9 +82,7 @@ public class CatChatServer
 
                     if (bytesRead == -1)
                     {
-                        clientChannel.close();
-                        onUserDisconnect();
-                        packetBuilders.remove(clientChannel);
+                        onUserDisconnect(clientChannel);
                     }
                 }
             }
@@ -89,7 +93,7 @@ public class CatChatServer
         }
     }
 
-    private void onPacketBuild(Packet packet)
+    private void onPacketBuild(Packet packet, SocketChannel connection)
     {
         ServerboundPacket serverPacket = (ServerboundPacket) packet;
 
@@ -98,14 +102,97 @@ public class CatChatServer
             case MESSAGE:
             {
                 SBMessagePacket messagePacket = (SBMessagePacket) serverPacket;
-                System.out.println("Message: " + messagePacket.message()); 
+
+                if (users.containsKey(connection)) //Connection has sent a UsernameSetPacket
+                {
+                    users.forEach((channel, ignored) -> 
+                    {
+                        String username = users.get(connection);
+                        CBMessagePacket cbMessagePacket = new CBMessagePacket(messagePacket.message(), username);
+                        ByteBuffer buffer = PacketRegistry.Client.write(cbMessagePacket);
+                        buffer.flip();
+
+                        System.out.println("Sending message from `" + username + "`: " + messagePacket.message());
+
+                        try 
+                        {
+                            channel.write(buffer);
+                        } 
+                        catch (IOException e) 
+                        {
+                            e.printStackTrace();
+                        }
+                    });
+                }
+
+                break;
+            }
+            case USERNAME:
+            {
+                SBUsernameSetPacket usernamePacket = (SBUsernameSetPacket) packet;
+                String username = usernamePacket.username();
+
+                if (!users.values().contains(username)) 
+                {
+                    System.out.println("Setting username: " + username);
+                    users.put(connection, username);
+                }
+                else
+                {
+                    CBUsernameInUsePacket usernameInUsePacket = new CBUsernameInUsePacket(username);
+                    ByteBuffer buffer = PacketRegistry.Client.write(usernameInUsePacket);
+                    buffer.flip();
+
+                    try 
+                    {
+                        connection.write(buffer);
+                    } 
+                    catch (IOException e) 
+                    {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
     }
 
-    private void onUserDisconnect()
+    private void onUserDisconnect(SocketChannel connection)
     {
-        System.out.println("User disconnected.");
+        if (users.containsKey(connection))
+        {
+
+            String disconnectedUser = users.get(connection);
+            users.remove(connection); //Remove before iteration so we don't send data on a closed connection.
+
+            System.out.println(disconnectedUser + " disconnected.");
+
+            CBUserJoinPacket disconnectPacket = new CBUserJoinPacket(disconnectedUser);
+            ByteBuffer buffer = PacketRegistry.Client.write(disconnectPacket);
+            buffer.flip();
+
+            users.forEach((channel, ignored) ->
+            {
+                try 
+                {
+                    channel.write(buffer);
+                } 
+                catch (IOException e) 
+                {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        packetBuilders.remove(connection);
+
+        try 
+        {
+            connection.close();
+        } 
+        catch (IOException e) 
+        {
+            e.printStackTrace();
+        }
     }
 
 }

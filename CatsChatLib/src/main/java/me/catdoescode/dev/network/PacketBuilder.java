@@ -3,7 +3,6 @@ package me.catdoescode.dev.network;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class PacketBuilder 
@@ -12,13 +11,13 @@ public class PacketBuilder
     private static final int PACKET_HEADER_SIZE = 4; //4 Bytes for the packet size
     
     private final Function<ByteBuffer, Packet> packetRegistry;
-    private final Consumer<Packet> packetBuildCallback;
+    private final PacketEventHandler packetBuildCallback;
     
     private ByteBuffer buffer;
     private BuildState buildState;
     
     
-    public PacketBuilder(Function<ByteBuffer, Packet> packetRegistry, Consumer<Packet> packetBuildCallback)
+    public PacketBuilder(Function<ByteBuffer, Packet> packetRegistry, PacketEventHandler packetBuildCallback)
     {
         this.buffer = ByteBuffer.allocate(PACKET_HEADER_SIZE);
         this.buildState = BuildState.SIZE;
@@ -43,8 +42,14 @@ public class PacketBuilder
             else
             {
                 Packet packet = packetRegistry.apply(buffer);
-                this.packetBuildCallback.accept(packet);
+
+                if (packet != null)
+                {
+                    this.packetBuildCallback.onPacketBuild(packet, channel);
+                }
+
                 buildState = BuildState.SIZE;
+                buffer = ByteBuffer.allocate(PACKET_HEADER_SIZE);
             }
         }
 
